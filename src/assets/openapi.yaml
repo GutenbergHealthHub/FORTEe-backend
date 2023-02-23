@@ -1,0 +1,666 @@
+openapi: 3.0.3
+info:
+    title: COMPASS NUM-APP Mobile Backend
+    description: COMPASS NUM-APP Mobile Backend API
+    version: 0.1.1
+servers:
+    - url: 'http://localhost:8080/api'
+tags:
+    - name: health
+      description: Healthcheck
+    - name: participant
+      description: Study Participant Operations
+    - name: auth
+      description: Authentication for Download APIs
+    - name: questionnaire
+      description: Questionnaire Operations
+    - name: queue
+      description: Queue Operations
+    - name: download
+      description: API to download data from Queue
+    - name: subjectIdentities
+      description: API to manage subjectIdentities based on orscf standard
+paths:
+    '/questionnaire/{questionnaireId}/{language}':
+        get:
+            tags:
+                - questionnaire
+            summary: Get a specific questionnaire
+            operationId: getQuestionnaire
+            parameters:
+                - name: questionnaireId
+                  in: path
+                  description: Questionnaire ID
+                  schema:
+                      type: string
+                  required: true
+                - name: language
+                  in: path
+                  description: Code of desired language
+                  schema:
+                      type: string
+                  required: false
+            responses:
+                '200':
+                    description: A FHIR Questionnaire as JSON
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Questionnaire'
+                '401':
+                    $ref: '#/components/responses/401NotAuthenticated'
+                '500':
+                    $ref: '#/components/responses/500ServerError'
+            security:
+                - Bearer: []
+    /questionnaire:
+        get:
+            tags:
+                - questionnaire
+            summary: Get a questionnaire by url and version
+            operationId: getQuestionnaireByUrlAndVersion
+            parameters:
+                - name: url
+                  in: query
+                  schema:
+                    type: string
+                  required: true
+                - name: version
+                  in: query
+                  schema:
+                    type: string
+                  required: true
+            responses:
+                '200':
+                    description: A FHIR Questionnaire as JSON
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Questionnaire'
+                '401':
+                    $ref: '#/components/responses/401NotAuthenticated'
+                '404':
+                    $ref: '#/components/responses/404NotFound'
+            security:
+                - Bearer: []
+        post:
+            tags:
+                - questionnaire
+            summary: Add a new questionnaire
+            operationId: addQuestionnaire
+            requestBody:
+                content:
+                    application/json:
+                        schema:
+                            $ref: '#/components/schemas/AddOrUpdateQuestionnaireRequest'
+            responses:
+                '204':
+                    description: successfully created the questionnaire (empty body returned)
+                '401':
+                    $ref: '#/components/responses/401NotAuthenticated'
+                '409':
+                    $ref: '#/components/responses/409Conflict'
+                '500':
+                    $ref: '#/components/responses/500ServerError'
+            security:
+                - Bearer: []
+        put:
+            tags:
+                - questionnaire
+            summary: Update an existing questionnaire
+            operationId: updateQuestionnaire
+            requestBody:
+                content:
+                    application/json:
+                        schema:
+                            $ref: '#/components/schemas/AddOrUpdateQuestionnaireRequest'
+            responses:
+                '204':
+                    description: successfully updated the questionnaire (empty body returned)
+                '401':
+                    $ref: '#/components/responses/401NotAuthenticated'
+                '409':
+                    $ref: '#/components/responses/409Conflict'
+                '500':
+                    $ref: '#/components/responses/500ServerError'
+            security:
+                - Bearer: []
+    /questionnaire/get-languages:
+        get:
+            tags:
+                - questionnaire
+            summary: Get available questionnaire languages
+            operationId: getQuestionnaireLanguages
+            responses:
+                '200':
+                    description: Array of language strings
+                    content:
+                      application/json:
+                        schema:
+                            $ref: '#/components/schemas/LanguageList'
+                '401':
+                    $ref: '#/components/responses/401NotAuthenticated'
+            security:
+                - Bearer: []
+    /queue:
+        post:
+            tags:
+                - queue
+            summary: Persists an encrypted report or questionnaire
+            requestBody:
+                content:
+                    application/json:
+                        schema:
+                            $ref: '#/components/schemas/QueueInsert'
+            parameters:
+                - name: type
+                  in: query
+                  description: questionnaire_response || report
+                  schema:
+                      type: string
+                  required: true
+                - name: subjectId
+                  in: query
+                  description: SubjectID
+                  schema:
+                      type: string
+                  required: true
+                - name: surveyId
+                  in: query
+                  description: ID of the current questionnaire (if type === questionnaire_response)
+                  schema:
+                      type: string
+                  required: false
+                - name: instanceId
+                  in: query
+                  description: >-
+                      ID of the instance of the current questionnaire (if type ===
+                      questionnaire_response)
+                  schema:
+                      type: string
+                  required: false
+                - name: updateValues
+                  in: query
+                  description: >-
+                      ID of the instance of the current questionnaire (if type ===
+                      questionnaire_response)
+                  schema:
+                      type: object
+                      required:
+                          - ''
+                      properties:
+                          basicTrigger:
+                              type: boolean
+                          specialTrigger:
+                              type: boolean
+                  required: false
+            responses:
+                '204':
+                    description: Added to queue (empty body returned)
+                '401':
+                    $ref: '#/components/responses/401NotAuthenticated'
+                '500':
+                    $ref: '#/components/responses/500ServerError'
+    /health:
+        get:
+            tags:
+                - health
+            summary: >-
+                Get backend status - exposes the HealthEndpoint from
+                https://cloudnativejs.io/
+            operationId: getHealth
+            responses:
+                '200':
+                    description: Server OK - When app is started
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Health'
+                '503':
+                    $ref: '#/components/responses/503ServerError'
+    '/participant/{subjectId}':
+        get:
+            tags:
+                - participant
+            summary: Get current participant information
+            operationId: getParticipant
+            parameters:
+                - name: subjectId
+                  in: path
+                  description: Subject ID
+                  schema:
+                      type: string
+                  required: true
+            responses:
+                '200':
+                    description: Subject information
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Participant'
+                '500':
+                    $ref: '#/components/responses/500ServerError'
+            security:
+                - Bearer: []
+    /participant/update-language-code/{subjectId}:
+        post:
+            tags:
+                - participant
+            summary: Document language preferrence of user
+            operationId: updateLanguageCode
+            requestBody:
+                content:
+                    application/json:
+                        schema:
+                            $ref: '#/components/schemas/UpdateLanguageRequest'
+            responses:
+                '200':
+                    description: successfully stored user language preference
+                '401':
+                    $ref: '#/components/responses/401NotAuthenticated'
+                '500':
+                    $ref: '#/components/responses/500ServerError'
+            security:
+                - Bearer: []
+    /auth:
+        post:
+            tags:
+                - auth
+            summary: Get an authentication token used for accessing the Download API
+            operationId: authenticate
+            requestBody:
+                content:
+                    application/json:
+                        schema:
+                            $ref: '#/components/schemas/LoginRequest'
+            responses:
+                '200':
+                    description: Successful authentication
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                properties:
+                                    access_token:
+                                        type: string
+                                        description: Access token for accessing the Download API
+                '401':
+                    $ref: '#/components/responses/401NotAuthenticated'
+                '500':
+                    $ref: '#/components/responses/500ServerError'
+    /download:
+        get:
+            tags:
+                - download
+            summary: Get current data from queue
+            parameters:
+                - name: page
+                  in: query
+                  description: Number of current page
+                  schema:
+                      type: number
+                      minimum: 1
+                      default: 1
+            security:
+                - DownloadAuthentication: []
+            responses:
+                '200':
+                    description: Current Queue data
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/DownloadAnswer'
+                '400':
+                    description: Page query parameter set wrong
+                '500':
+                    $ref: '#/components/responses/500ServerError'
+        put:
+            tags:
+                - download
+            summary: Mark entries with given IDs as downloaded
+            requestBody:
+                description: UUIDs of CTransferList to be updated
+                content:
+                    application/json:
+                        schema:
+                            $ref: '#/components/schemas/UpdateUUIDsParam'
+            security:
+                - DownloadAuthentication: []
+            responses:
+                '200':
+                    description: Updated row count
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/UpdatedRowCount'
+                '500':
+                    $ref: '#/components/responses/500ServerError'
+    '/subjectIdentities/addNew':
+        post:
+            tags:
+                - subjectIdentities
+            summary: Add new subject identity
+            operationId: postSubjectidentity
+            requestBody:
+                content:
+                    application/json:
+                        schema:
+                            $ref: '#/components/schemas/SubjectIdentity'
+            responses:
+                '200':
+                    description: OK
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                properties:
+                                    return:
+                                        type: boolean
+                                        description: the method-result of the executed operation
+
+                '400':
+                    $ref: '#/components/responses/400BadRequest'
+                '401':
+                    $ref: '#/components/responses/401NotAuthenticated'
+                '409':
+                    $ref: '#/components/responses/409Conflict'
+                '500':
+                    $ref: '#/components/responses/500ServerError'
+components:
+    schemas:
+        DownloadAnswer:
+            type: object
+            properties:
+                totalEntries:
+                    type: number
+                totalPages:
+                    type: number
+                currentPage:
+                    type: number
+                cTransferList:
+                    type: string
+                    description: >-
+                        'RSA-SHA256' Signature of object containing UUID, Subject ID, Questionnaire ID, encrypted questionnaire response, dispatch date, reception date.'
+        UpdateUUIDsParam:
+            type: array
+            items:
+                type: string
+                description: UUID of CTransfer to be updated.
+                example: 534772d7-b62d-4050-ab2f-f052933c325f
+        UpdatedRowCount:
+            type: object
+            properties:
+                updatedRowCount:
+                    type: number
+        LoginRequest:
+            type: object
+            properties:
+                encrypted_creds:
+                    type: string
+                    description: >
+                        Json object with  "ApiID" + "ApiKey" + "CurrentDate" with random AES
+                        256bit key and random initialization vector;
+                encrypted_key:
+                    type: string
+                    description: >
+                        Encrypt random AES key with the backend's public key (RSA-AES-256-CBC
+                        Encryption)
+                iv:
+                    type: string
+                    description: Random initialization vector
+        LanguageList:
+            type: array
+            items:
+                type: string
+            example:
+              - de
+              - en
+        UpdateLanguageRequest:
+            type: object
+            properties:
+                language:
+                    type: string
+                    description: the code of the language preferred by the user
+                    example: 'en'
+        QueueInsert:
+            type: object
+            properties:
+                payload:
+                    type: string
+                    description: 'encrypted, base'
+        Participant:
+            type: object
+            properties:
+                current_instance_id:
+                    type: string
+                    description: ID of the current Questionnaire Instance
+                current_questionnaire_id:
+                    type: string
+                    description: 'ID of the current Questionnaire '
+                due_date:
+                    type: string
+                    description: Due Date of the Questionnaire
+                start_date:
+                    type: string
+                    description: Start Date of the Questionnaire
+                subjectId:
+                    type: string
+                    description: Subject ID given by QR Code
+                firstTime:
+                    type: boolean
+                    description: Marks if the participant has already send in a questionnaire
+                status:
+                    type: string
+                    enum:
+                        - on-study
+                        - off-study
+                    description: Marks if subject is participating in the study
+                general_study_end_date:
+                    type: date
+                    description: End date of study that subject is/was participating in
+                personal_study_end_date:
+                    type: date
+                    description: Individual end date of study that subject is/was participating in
+                language_code:
+                    type: string
+                    description: Code of participant language
+        Health:
+            type: object
+            properties:
+                status:
+                    type: string
+                    enum:
+                        - UP
+        Questionnaire:
+            type: object
+            properties:
+                resourceType:
+                    type: string
+                url:
+                    type: string
+                version:
+                    type: string
+                item:
+                    type: array
+                    items:
+                        $ref: '#/components/schemas/QuestionnaireItem'
+        QuestionnaireItem:
+            required:
+                - linkId
+                - type
+            type: object
+            properties:
+                linkId:
+                    type: string
+                    description: Unique id for item in questionnaire
+                text:
+                    type: string
+                    description: Primary text for the item
+                required:
+                    type: boolean
+                    description: Whether the item must be included in data results.
+                repeats:
+                    type: boolean
+                    description: NOT IN USE - Whether the item may repeat
+                type:
+                    type: string
+                    description: |
+                        Distinguishes groups from questions and display text and indicates data type for questions.
+
+                        * group - An item with no direct answer but should have at least one child item.
+                        * display - Text for display that will not capture an answer or have child items.
+                        * string - Question with a short (few words to short sentence) free-text entry answer (valueString).
+                        * date - Question with a date answer (valueDate).
+                        * integer - Question with an integer answer (valueInteger).
+                        * decimal - Question with is a real number answer (valueDecimal).
+                        * choice -   Question with a Coding drawn from a list of possible answers (specified in either the answerOption property, or via the valueset referenced in the answerValueSet property) as an answer (valueCoding).
+                        * open-choice - Answer is a Coding drawn from a list of possible answers (as with the choice type) or a free-text entry in a string (valueCoding or valueString).
+                    enum:
+                        - group
+                        - display
+                        - string
+                        - date
+                        - integer
+                        - decimal
+                        - choice
+                        - open-choice
+                enableWhen:
+                    type: array
+                    items:
+                        $ref: '#/components/schemas/EnableWhenItem'
+                enableBehavior:
+                    type: string
+                    description: |
+                        Controls how multiple enableWhen values are interpreted - whether all or any must be true.
+                        This element should be specified if more than one enableWhen item is provided.
+                        If not set it defaults to 'all'.
+
+                        * all - Enable the question when all the enableWhen criteria are satisfied.
+                        * any - Enable the question when any of the enableWhen criteria are satisfied.
+                    enum:
+                        - any
+                        - all
+                definition:
+                    type: string
+                    format: uri
+                answerOption:
+                    type: array
+                    items:
+                        $ref: '#/components/schemas/AnswerOptionItem'
+                item:
+                    type: array
+                    description: Nested questionnaire items
+                    items:
+                        $ref: '#/components/schemas/QuestionnaireItemCircular'
+        QuestionnaireItemCircular:
+            description: "This is the same object as `QuestionnaireItem`. Workaround for Swagger bug. Swagger can't display recursive structures. See https://github.com/swagger-api/swagger-ui/issues/3325"
+            allOf:
+                - $ref: '#/components/schemas/QuestionnaireItem'
+        AddOrUpdateQuestionnaireRequest:
+            type: object
+            properties:
+                name:
+                    type: string
+                    description: the name of the questionnaire as used for the logic to deployment
+                url:
+                    type: string
+                    description: the url of the questionnaire as defined in its metadata
+                version:
+                    type: string
+                    description: the version of the questionnaire as defined in its metadata
+                questionnaire:
+                    type: object
+                    $ref: '#/components/schemas/Questionnaire'
+        SubjectIdentity:
+            type: object
+            properties:
+                subjectIdentity:
+                    type: object
+                    properties:
+                        recordId:
+                            type: string
+                            description: Identifier for new subject
+        EnableWhenItem:
+            required:
+                - operator
+                - question
+            type: object
+            properties:
+                question:
+                    type: string
+                    description: Question that determines whether item is enabled. Uses the `linkId` of the question.
+                operator:
+                    type: string
+                    description: |
+                        * '=' True if whether at least one answer has a value that is equal to the enableWhen answer.
+                    enum:
+                        - =
+                answerBoolean:
+                    type: boolean
+                    description: 'Used, if referenced question is of type boolean.'
+                answerString:
+                    type: string
+                    description: 'Used, if referenced question is of type choice.'
+            description: |
+                Only allow data when the defined condition is true.
+                The EnableWhenBehavior should be set, when there are multiple enableWhen conditions.
+        AnswerOptionItem:
+            type: object
+            properties:
+                valueString:
+                    type: string
+                    description: The answer option text. Prefixed by an ID to identify the answer.
+                    example: '02# Schultergelenk'
+            description: Permitted answer
+        AnswerItem:
+            required:
+                - linkId
+                - text
+            type: object
+            properties:
+                linkId:
+                    type: string
+                    description: Unique id for item in questionnaire
+                text:
+                    type: string
+                    description: Primary text for the item
+                answer:
+                    type: array
+                    items:
+                        $ref: '#/components/schemas/AnswerOptionItem'
+                item:
+                    type: array
+                    description: Nested questionnaire items
+                    items:
+                        $ref: '#/components/schemas/AnswerItemCircular'
+        AnswerItemCircular:
+            description: "This is the same object as `AnswerItem`. Workaround for Swagger bug. Swagger can't display recursive structures. See https://github.com/swagger-api/swagger-ui/issues/3325"
+            allOf:
+                - $ref: '#/components/schemas/AnswerItem'
+    securitySchemes:
+        Bearer:
+            type: http
+            scheme: bearer
+            bearerFormat: string
+            description: |
+                Subject ID to identify the participant.
+        DownloadAuthentication:
+            type: http
+            scheme: bearer
+            bearerFormat: JWT
+            description: Access token for the Download API
+    responses:
+        400BadRequest:
+            description: Bad Request - (URL) parameter is missing
+        401NotAuthenticated:
+            description: Not Authenticated - No valid authentication data was supplied
+        403NotAuthorized:
+            description: Unauthorized - No valid authorization header was supplied
+        404NotFound:
+            description: Not Found - Requested data does not exist
+        409Conflict:
+            description: Conflict - Resource already exists
+        500ServerError:
+            description: Internal Server Error
+        503ServerError:
+            description: Unavailable
